@@ -85,7 +85,7 @@ jobs:
           security import "$RUNNER_TEMP/moosh.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security list-keychains -d user -s "$keychain"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
-          identity="$(security find-identity -v -p codesigning "$keychain" | awk 'NR == 1 { print $2 }')"
+          identity="$(security find-identity -v -p codesigning "$keychain" | grep -Eo '[0-9A-F]{40}' | head -1)"
           test -n "$identity"
           echo "MOOSH_CODE_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
 
