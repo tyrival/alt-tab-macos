@@ -11,13 +11,11 @@ Moosh is an unofficial GPL-3.0 fork of AltTab. `master` remains the upstream-syn
    - `MOOSH_CERTIFICATE_PASSWORD`: PKCS#12 password.
    - `MOOSH_SPARKLE_PRIVATE_KEY_BASE64`: base64-encoded Sparkle private-key file.
 4. Add repository variable `MOOSH_SPARKLE_PUBLIC_KEY` containing the matching Sparkle public key.
-5. In repository Settings → Pages, choose **GitHub Actions** as the source.
-
 Changing either signing key after publishing updates breaks continuity. Back up both private keys and their passwords.
 
 ## Publish a release
 
-Run **Release Moosh** from Actions while the desired commit is present on `personal`, then enter a semantic version such as `1.2.3`. The workflow builds only arm64, signs with the stable self-signed identity, creates `Moosh-1.2.3.zip` and `Moosh-1.2.3-arm64.dmg`, publishes tag `personal-v1.2.3`, creates a public GitHub Release, and deploys the signed Sparkle feed to GitHub Pages.
+Push a `personal-v1.2.3` tag whose commit is present on `personal`. The workflow builds only arm64, signs with the stable self-signed identity, creates `Moosh-1.2.3.zip` and `Moosh-1.2.3-arm64.dmg`, and publishes them with the signed `appcast.xml` in a public GitHub Release. Installed builds read the latest feed from `releases/latest/download/appcast.xml`.
 
 The workflow refuses commits outside `origin/personal`, missing secrets, invalid versions, invalid signatures, non-arm64 binaries, or an inaccessible Release archive.
 

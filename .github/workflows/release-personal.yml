@@ -13,8 +13,6 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: release-moosh
@@ -139,26 +137,4 @@ jobs:
             git tag "$TAG" "$GITHUB_SHA"
             git push origin "$TAG"
           fi
-          gh release create "$TAG" "dist/Moosh-$VERSION.zip" "dist/Moosh-$VERSION-arm64.dmg" --title "Moosh $VERSION" --generate-notes --target "$GITHUB_SHA"
-
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/pages
-
-  deploy-pages:
-    needs: release
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Verify release archive is public
-        env:
-          TAG: ${{ needs.release.outputs.tag }}
-        run: |
-          version="${TAG#personal-v}"
-          curl --fail --location --retry 5 "https://github.com/tyrival/alt-tab-macos/releases/download/$TAG/Moosh-$version.zip" --output /dev/null
-      - name: Deploy update feed
-        id: deployment
-        uses: actions/deploy-pages@v4
+          gh release create "$TAG" "dist/Moosh-$VERSION.zip" "dist/Moosh-$VERSION-arm64.dmg" "dist/pages/appcast.xml" --title "Moosh $VERSION" --generate-notes --target "$GITHUB_SHA"

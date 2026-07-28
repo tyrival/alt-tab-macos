@@ -2,7 +2,7 @@ import Cocoa
 import Sparkle
 
 enum MooshUpdate {
-    static let feedUrl = "https://tyrival.github.io/alt-tab-macos/appcast.xml"
+    static let feedUrl = "https://github.com/tyrival/alt-tab-macos/releases/latest/download/appcast.xml"
 }
 
 class SparkleDelegate: NSObject, SPUUpdaterDelegate {

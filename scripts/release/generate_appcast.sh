@@ -19,7 +19,7 @@ cat > "$output_path" <<EOF
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>Moosh updates</title>
-    <link>https://tyrival.github.io/alt-tab-macos/appcast.xml</link>
+    <link>https://github.com/tyrival/alt-tab-macos/releases/latest/download/appcast.xml</link>
     <description>Moosh release feed</description>
     <language>en</language>
     <item>

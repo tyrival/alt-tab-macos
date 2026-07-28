@@ -24,7 +24,7 @@ forbid_product_text() {
 require_text '^PRODUCT_NAME = Moosh$' config/base.xcconfig
 require_text '^PRODUCT_BUNDLE_IDENTIFIER = com\.tyrival\.moosh$' config/base.xcconfig
 require_text '^ARCHS = arm64$' config/base.xcconfig
-require_text 'https://tyrival\.github\.io/alt-tab-macos/appcast\.xml' src/vendors/SparkleDelegate.swift
+require_text 'https://github\.com/tyrival/alt-tab-macos/releases/latest/download/appcast\.xml' src/vendors/SparkleDelegate.swift
 require_text 'github\.com/tyrival/alt-tab-macos/releases/download' scripts/release/generate_appcast.sh
 require_text 'GNU GENERAL PUBLIC LICENSE' LICENCE.md
 require_text 'Moosh is an unofficial modified version of AltTab' README.md
