@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-15
+    runs-on: macos-26
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
