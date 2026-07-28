@@ -83,11 +83,12 @@ jobs:
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
           security import "$RUNNER_TEMP/moosh.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          openssl pkcs12 -in "$RUNNER_TEMP/moosh.p12" -clcerts -nokeys -passin "pass:$CERTIFICATE_PASSWORD" -out "$RUNNER_TEMP/moosh.crt"
+          security add-trusted-cert -d -r trustRoot -k "$keychain" "$RUNNER_TEMP/moosh.crt"
           security list-keychains -d user -s "$keychain"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
-          identity="$(security find-identity -v -p codesigning "$keychain" | grep -Eo '[0-9A-F]{40}' | head -1)"
-          test -n "$identity"
-          echo "MOOSH_CODE_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          security find-identity -v -p codesigning "$keychain" | grep -F '"Moosh Self-Signed"'
+          echo "MOOSH_CODE_SIGN_IDENTITY=Moosh Self-Signed" >> "$GITHUB_ENV"
 
       - name: Prepare Sparkle key and build settings
         shell: bash
