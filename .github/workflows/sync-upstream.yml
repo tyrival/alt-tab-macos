@@ -1,0 +1,53 @@
+name: Sync upstream
+
+on:
+  schedule:
+    # 每天新加坡时间 09:20 执行
+    - cron: "20 9 * * *"
+      timezone: "Asia/Singapore"
+
+  # 支持在 Actions 页面手动执行
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-master
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Sync upstream master
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fork master
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/lwouis/alt-tab-macos.git
+          git fetch upstream master
+
+      - name: Check whether update is needed
+        id: check
+        run: |
+          if git merge-base --is-ancestor upstream/master HEAD; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Fork master already contains the latest upstream changes."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "New upstream changes found."
+          fi
+
+      - name: Merge upstream master
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit upstream/master
+          git push origin HEAD:master
