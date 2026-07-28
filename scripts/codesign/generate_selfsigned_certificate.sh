@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 
-set -exu
+set -eu
 
 certificateFile="$1"
 certificatePassword="$2"
+certificateName="${3:-Local Self-Signed}"
 
 # certificate request (see https://apple.stackexchange.com/q/359997)
-cat >$certificateFile.conf <<EOL
+cat >"$certificateFile.conf" <<EOL
   [ req ]
   distinguished_name = req_name
   prompt = no
   [ req_name ]
-  CN = Local Self-Signed
+  CN = $certificateName
   [ extensions ]
   basicConstraints=critical,CA:false
   keyUsage=critical,digitalSignature
@@ -20,9 +21,9 @@ cat >$certificateFile.conf <<EOL
 EOL
 
 # generate key
-openssl genrsa -out $certificateFile.key 2048
+openssl genrsa -out "$certificateFile.key" 2048
 # generate self-signed certificate
-openssl req -x509 -new -config $certificateFile.conf -nodes -key $certificateFile.key -extensions extensions -sha256 -out $certificateFile.crt
+openssl req -x509 -new -config "$certificateFile.conf" -nodes -key "$certificateFile.key" -extensions extensions -sha256 -out "$certificateFile.crt"
 
 openssl_version=$(openssl version)
 # openssl v3.x requires to pass -legacy
@@ -33,4 +34,4 @@ else
   flag=""
 fi
 # wrap key and certificate into PKCS12
-openssl pkcs12 $flag -export -inkey $certificateFile.key -in $certificateFile.crt -out $certificateFile.p12 -passout pass:$certificatePassword
+openssl pkcs12 $flag -export -inkey "$certificateFile.key" -in "$certificateFile.crt" -out "$certificateFile.p12" -passout "pass:$certificatePassword"
