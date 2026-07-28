@@ -1,6 +1,10 @@
 import Cocoa
 import Sparkle
 
+enum MooshUpdate {
+    static let feedUrl = "https://tyrival.github.io/alt-tab-macos/appcast.xml"
+}
+
 class SparkleDelegate: NSObject, SPUUpdaterDelegate {
     /// Outcome of a Sparkle update check from the app's point of view. We collapse "no update
     /// found" and "check failed" into `.upToDate` because every caller wants the same
@@ -24,7 +28,7 @@ class SparkleDelegate: NSObject, SPUUpdaterDelegate {
     var onNextCheckCompletion: ((UpdateCheckResult) -> Void)?
 
     func feedURLString(for updater: SPUUpdater) -> String? {
-        return Endpoints.appcastUrl
+        return MooshUpdate.feedUrl
     }
 
     func feedParameters(for updater: SPUUpdater, sendingSystemProfile sendingProfile: Bool) -> [[String: String]] {

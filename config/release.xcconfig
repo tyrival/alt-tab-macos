@@ -2,9 +2,9 @@
 
 #include "base.xcconfig"
 
-CODE_SIGN_IDENTITY = Developer ID Application: Louis Pontoise (QXD7GW8FHY)
+CODE_SIGN_IDENTITY = $(MOOSH_CODE_SIGN_IDENTITY)
 CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO // for notarization
-OTHER_CODE_SIGN_FLAGS = --timestamp --deep --options runtime // for notarization
+OTHER_CODE_SIGN_FLAGS = --deep --options runtime
 SWIFT_COMPILATION_MODE = wholemodule
 SWIFT_OPTIMIZATION_LEVEL = -O
 GCC_OPTIMIZATION_LEVEL = s // optimize for size; Xcode default for Release but explicit

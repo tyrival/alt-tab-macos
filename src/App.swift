@@ -13,7 +13,7 @@ class App: AppCenterApplication {
     static let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as! String
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as! String
     static let licence = Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as! String
-    static let repository = "https://github.com/lwouis/alt-tab-macos"
+    static let repository = "https://github.com/tyrival/alt-tab-macos"
     static let appIconReps = CGImage.allNamed("app.icns")
 
     static func appIcon(for size: NSSize) -> CGImage {
@@ -23,12 +23,9 @@ class App: AppCenterApplication {
     }
     override class var shared: App { super.shared as! App }
     static var supportProjectAction: Selector { #selector(App.supportProject) }
-    static var upgradeToProAction: Selector { #selector(App.upgradeToPro) }
-    static var openAccountAction: Selector { #selector(App.openAccount) }
     static var isTerminating = false
     private static var isVeryFirstSummon = true
     private static var pendingShowSettingsWindow = false
-    private static var firstLaunchSettingsObserver: NSObjectProtocol?
     // periphery:ignore
     private static var appCenterDelegate: AppCenterCrash?
     // periphery:ignore
@@ -76,7 +73,6 @@ class App: AppCenterApplication {
             PreviewPanel.shared.orderOut(nil)
         }
         MainMenu.toggle(true)
-        ProTransitionManager.shared.onSwitcherDismissed()
     }
 
     /// we don't want another window to become key when the TilesPanel is hidden
@@ -90,7 +86,6 @@ class App: AppCenterApplication {
         SettingsWindow.canBecomeKey_ = canBecomeKey_
         AboutWindow.canBecomeKey_ = canBecomeKey_
         PermissionsWindow.canBecomeKey_ = canBecomeKey_
-        FeedbackWindow.canBecomeKey_ = canBecomeKey_
         DebugWindow.canBecomeKey_ = canBecomeKey_
     }
 
@@ -113,21 +108,8 @@ class App: AppCenterApplication {
         NSWorkspace.shared.open(URL(string: Endpoints.supportUrl)!)
     }
 
-    @objc static func upgradeToPro() {
-        ProTransitionManager.openCheckout()
-    }
-
-    @objc static func openAccount() {
-        UpgradeTab.openAccountPage()
-    }
-
     @objc static func showFeedbackPanel() {
-        let wasFresh = FeedbackWindow.shared == nil
-        initializeFeedbackWindowIfNeeded()
-        // Fresh init already runs reset(); skip the redundant second call so we don't
-        // double-fire the Sparkle preflight on the first ever open.
-        if !wasFresh { FeedbackWindow.shared?.reset() }
-        showSecondaryWindow(FeedbackWindow.shared!)
+        NSWorkspace.shared.open(URL(string: Endpoints.feedbackUrl)!)
     }
 
     @objc static func showDebugWindow() {
@@ -178,10 +160,6 @@ class App: AppCenterApplication {
         if AboutWindow.shared == nil { _ = AboutWindow() }
     }
 
-    private static func initializeFeedbackWindowIfNeeded() {
-        if FeedbackWindow.shared == nil { _ = FeedbackWindow() }
-    }
-
     private static func initializeDebugWindowIfNeeded() {
         if DebugWindow.shared == nil { _ = DebugWindow() }
     }
@@ -193,34 +171,8 @@ class App: AppCenterApplication {
     @discardableResult
     private static func showSettingsWindowOnFirstLaunchIfNeeded() -> Bool {
         guard !Preferences.settingsWindowShownOnFirstLaunch else { return false }
-        // If the Day1 Welcome window will be shown on this launch, wait for the user to close it
-        // before showing Settings — otherwise both windows appear stacked.
-        if willShowDay1WelcomeOnAppLaunch() {
-            deferFirstLaunchSettingsUntilDay1WelcomeCloses()
-        } else {
-            showAndCenterSettingsWindowOnFirstLaunch()
-        }
+        showAndCenterSettingsWindowOnFirstLaunch()
         return true
-    }
-
-    /// Mirrors the conditions under which `ProTransitionScheduler.computeNextFireDate()` returns
-    /// "now" for the Welcome prompt. Kept narrow on purpose: the other Day-X prompts are gated by
-    /// trial age and don't fire on the very first launch.
-    private static func willShowDay1WelcomeOnAppLaunch() -> Bool {
-        if case .pro = LicenseManager.shared.state { return false }
-        return !ProTransitionManager.shared.hasSeenWelcome
-    }
-
-    private static func deferFirstLaunchSettingsUntilDay1WelcomeCloses() {
-        firstLaunchSettingsObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.willCloseNotification, object: nil, queue: .main) { notification in
-            guard notification.object is Day1WelcomeLetterWindow else { return }
-            if let observer = firstLaunchSettingsObserver {
-                NotificationCenter.default.removeObserver(observer)
-                firstLaunchSettingsObserver = nil
-            }
-            DispatchQueue.main.async { showAndCenterSettingsWindowOnFirstLaunch() }
-        }
     }
 
     /// `showSettingsWindow()` relies on a saved autosave frame to position the window. On first
@@ -330,7 +282,6 @@ class App: AppCenterApplication {
             // recalc) is invisible. `TilesPanel.show()` flips alpha back to 1 once everything is
             // in its final state. No-op on first summon (panel was orderOut'd with alpha=0).
             TilesPanel.shared.alphaValue = 0
-            ProTransitionManager.shared.onSwitcherShown()
             let shouldStartInSearchMode = Preferences.effectiveShortcutStyle(shortcutIndex) == .searchOnRelease
             TilesView.startSearchSession(shouldStartInSearchMode)
             if shouldStartInSearchMode {
@@ -431,9 +382,7 @@ class App: AppCenterApplication {
         if QAMenu.graphEnabled { DebugMenu.setEnabled(true) }
         #endif
         UsageStats.prune()
-        ProTransitionManager.shared.onAction = { ProPromptHost.shared.dispatch($0) }
-        ProTransitionManager.shared.onAppLaunchComplete()
-        Logger.info { "Finished launching AltTab" }
+        Logger.info { "Finished launching \(App.name)" }
     }
 }
 
@@ -442,7 +391,7 @@ extension App: NSApplicationDelegate {
         App.appCenterDelegate = AppCenterCrash()
         App.shared.disableRelaunchOnLogin()
         Logger.initialize()
-        Logger.info { "Launching AltTab \(App.version)" }
+        Logger.info { "Launching \(App.name) \(App.version)" }
         // Create the background queues first, before anything that can pump the main run loop re-entrantly
         // (the "move to /Applications" modal below, the WindowServer tap's discovery). Window.init reads
         // BackgroundWork.screenshotsQueue (an implicitly-unwrapped optional) via Application.fetchAppIcon, so
@@ -459,59 +408,12 @@ extension App: NSApplicationDelegate {
         #else
         MoveToApplicationsFolder.promptIfNeeded()
         #endif
-        // The WindowServer event tap is CGS-only (needs no Accessibility, no Preferences, no model), so
-        // install it before licensing / the permission gate. The skeleton is then available immediately and
-        // independent of whether the user has granted AX.
+        // The WindowServer event tap is CGS-only and can start before the permission gate.
         WindowServerEvents.observe()
         AXUIElement.setGlobalTimeout()
         Preferences.initialize()
         PreferencesPersistenceCheck.runInBackground()
-        LicenseManager.shared.onBeforeProUnlock = { ProTransitionManager.shared.onProUnlocked() }
-        LicenseManager.shared.onStateChanged = { state in
-            Menubar.refreshLicenseMenuItems()
-            syncLicenseCookie(state: state)
-            ProTransitionManager.shared.onLicenseStateChanged()
-            UpgradeTab.refreshStatus()
-            SettingsWindow.shared?.refreshUpgradeButton()
-            if TilesPanel.shared != nil { App.resetPreferencesDependentComponents() }
-            // `isProLocked` reads from state, so a state change implicitly changes the lock.
-            // Notify UI observers so Settings rows repaint their ghost/pro-locked styling.
-            NotificationCenter.default.post(name: ProTransitionManager.proLockStateDidChangeNotification, object: nil)
-        }
-        #if DEBUG
-        // test affordance: `--mock-pro` skips the license keychain round-trip (which prompts/hangs for an
-        // ad-hoc build whose signature doesn't match the real app's keychain items). See QAMenu's Pro button.
-        if CommandLine.arguments.contains("--mock-pro") { LicenseManager.shared.mockProUser() }
-        #endif
-        LicenseManager.shared.initialize()
         SystemPermissions.ensurePermissionsAreGranted()
-    }
-
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            if url.scheme == App.bundleIdentifier {
-                handleCustomUrl(url)
-            }
-        }
-    }
-
-    private func handleCustomUrl(_ url: URL) {
-        guard url.host == "activate",
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let licenseKey = components.queryItems?.first(where: { $0.name == "license_key" })?.value,
-              !licenseKey.isEmpty else {
-            return
-        }
-        UpgradeTab.showAutoActivating(licenseKey)
-        LicenseManager.shared.activate(licenseKey) { result in
-            switch result {
-            case .success:
-                UpgradeTab.showAutoActivationSuccess()
-                App.resetPreferencesDependentComponents()
-            case .failure:
-                UpgradeTab.showAutoActivationFailed(licenseKey)
-            }
-        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

@@ -353,10 +353,6 @@ extension App {
     static let version = "99.99.99"
 }
 
-enum ProTransitionState {
-    static func markFreshInstallIfUnknown(_ value: Bool) {}
-}
-
 enum AxError: Error {
     case runtimeError
 }

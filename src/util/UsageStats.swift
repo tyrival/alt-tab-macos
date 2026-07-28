@@ -31,23 +31,6 @@ struct UsageStats {
 
     static var triggerCount: Int { count("triggers", since: Date.distantPast) }
 
-    static var usedProFeaturesSessionCount: Int {
-        UsageStatsTestable.proFeatureSessionCount(
-            triggers: getTimestamps("triggers"),
-            appIcons: getTimestamps("triggersAppIcons"),
-            titles: getTimestamps("triggersTitles"),
-            extraShortcuts: getTimestamps("triggersExtraShortcuts"),
-            searches: getTimestamps("searches"))
-    }
-
-    static func formatCount(_ n: Int) -> String { UsageStatsTestable.formatCount(n) }
-
-    static func usedProFeatureNames() -> [String] {
-        UsageStatsTestable.proFeatureNames().compactMap {
-            count($0.key, since: Date.distantPast) > 0 ? $0.name : nil
-        }
-    }
-
     static func usedAppIconsOrTitles() -> Bool {
         count("triggersAppIcons", since: Date.distantPast) > 0 || count("triggersTitles", since: Date.distantPast) > 0
     }

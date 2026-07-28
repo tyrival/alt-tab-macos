@@ -21,7 +21,6 @@ unit-tested (Humble Object pattern), so it doesn't appear here; that's by design
 | 18% (34/191) | `src/kit/text/LightLabel.swift` |
 | 49% (19/39) | `src/macos/api-wrappers/HelperExtensionsTestable.swift` |
 | 49% (248/506) | `src/preferences/PreferencesMigrations.swift` |
-| 50% (203/402) | `src/pro/ui/ProBadgeView.swift` |
 | 62% (5/8) | `src/switcher/SwitcherSession.swift` |
 | 64% (63/98) | `src/_test-support/Mocks.swift` |
 | 65% (49/75) | `src/events/KeyboardEventsTestable.swift` |
@@ -29,7 +28,6 @@ unit-tested (Humble Object pattern), so it doesn't appear here; that's by design
 | 76% (250/331) | `src/preferences/settings-window/SettingsSearch.swift` |
 | 78% (138/178) | `src/kit/CustomRecorderControlTestable.swift` |
 | 79% (15/19) | `src/switcher/AppearanceTestable.swift` |
-| 91% (289/316) | `src/pro/license/LicenseManager.swift` |
 | 92% (206/225) | `src/preferences/settings-window/SettingsSearchHighlight.swift` |
 | 93% (13/14) | `src/preferences/settings-window/tabs/controls/OverrideClickResolver.swift` |
 | 93% (93/100) | `src/switcher/state/SelectionResolver.swift` |
@@ -37,7 +35,6 @@ unit-tested (Humble Object pattern), so it doesn't appear here; that's by design
 | 93% (28/30) | `src/util/UsageStatsTestable.swift` |
 | 96% (48/50) | `src/switcher/state/WindowOrderResolver.swift` |
 | 98% (391/397) | `src/switcher/SearchTestable.swift` |
-| 100% (108/108) | `src/pro/scheduling/ProTransitionManagerTestable.swift` |
 | 100% (40/40) | `src/switcher/state/ExceptionMatcher.swift` |
 | 100% (48/48) | `src/switcher/state/SearchModeResolver.swift` |
 | 100% (50/50) | `src/switcher/state/WindowFilterResolver.swift` |

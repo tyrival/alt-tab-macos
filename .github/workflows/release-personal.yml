@@ -1,0 +1,163 @@
+name: Release Moosh
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version such as 1.2.3
+        required: true
+        type: string
+  push:
+    tags:
+      - "personal-v*"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release-moosh
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+            version="${tag#personal-v}"
+          else
+            version="$MANUAL_VERSION"
+            tag="personal-v$version"
+          fi
+          [[ "$version" =~ ^[0-9]+(\.[0-9]+){2}([.-][0-9A-Za-z.-]+)?$ ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Validate branch ancestry
+        shell: bash
+        run: |
+          git fetch origin personal
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/personal
+          else
+            test "$GITHUB_REF_NAME" = "personal"
+            test "$GITHUB_SHA" = "$(git rev-parse origin/personal)"
+          fi
+
+      - name: Validate release secrets
+        env:
+          CERTIFICATE: ${{ secrets.MOOSH_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MOOSH_CERTIFICATE_PASSWORD }}
+          SPARKLE_KEY: ${{ secrets.MOOSH_SPARKLE_PRIVATE_KEY_BASE64 }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.MOOSH_SPARKLE_PUBLIC_KEY }}
+        run: |
+          test -n "$CERTIFICATE"
+          test -n "$CERTIFICATE_PASSWORD"
+          test -n "$SPARKLE_KEY"
+          test -n "$SPARKLE_PUBLIC_KEY"
+
+      - name: Import stable signing identity
+        shell: bash
+        env:
+          CERTIFICATE: ${{ secrets.MOOSH_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.MOOSH_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/moosh-signing.keychain-db"
+          password="$(openssl rand -hex 24)"
+          echo "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/moosh.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/moosh.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk 'NR == 1 { print $2 }')"
+          test -n "$identity"
+          echo "MOOSH_CODE_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Prepare Sparkle key and build settings
+        shell: bash
+        env:
+          SPARKLE_KEY: ${{ secrets.MOOSH_SPARKLE_PRIVATE_KEY_BASE64 }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.MOOSH_SPARKLE_PUBLIC_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "$SPARKLE_KEY" | base64 --decode > "$RUNNER_TEMP/moosh-sparkle-private-key"
+          chmod 600 "$RUNNER_TEMP/moosh-sparkle-private-key"
+          {
+            echo "MOOSH_CODE_SIGN_IDENTITY = $MOOSH_CODE_SIGN_IDENTITY"
+            echo "MOOSH_SPARKLE_PUBLIC_KEY = $SPARKLE_PUBLIC_KEY"
+            echo "CURRENT_PROJECT_VERSION = $VERSION"
+          } > config/local.xcconfig
+          echo "SPARKLE_PRIVATE_KEY_FILE=$RUNNER_TEMP/moosh-sparkle-private-key" >> "$GITHUB_ENV"
+
+      - name: Build Apple Silicon app
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -project alt-tab-macos.xcodeproj -scheme Release -configuration Release -derivedDataPath DerivedData -clonedSourcePackagesDirPath DerivedData/SourcePackages ARCHS=arm64 ONLY_ACTIVE_ARCH=YES | scripts/xcbeautify
+
+      - name: Package and verify
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          app_path="$PWD/DerivedData/Build/Products/Release/Moosh.app"
+          APP_PATH="$app_path" VERSION="$VERSION" OUTPUT_DIR=dist scripts/release/package_moosh.sh
+          APP_PATH="$app_path" ZIP_PATH="$PWD/dist/Moosh-$VERSION.zip" DMG_PATH="$PWD/dist/Moosh-$VERSION-arm64.dmg" scripts/release/verify_release.sh
+
+      - name: Generate appcast
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          VERSION="$VERSION" TAG="$TAG" ZIP_PATH="$PWD/dist/Moosh-$VERSION.zip" SPARKLE_PRIVATE_KEY_FILE="$SPARKLE_PRIVATE_KEY_FILE" OUTPUT_PATH="$PWD/dist/pages/appcast.xml" scripts/release/generate_appcast.sh
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+          fi
+          gh release create "$TAG" "dist/Moosh-$VERSION.zip" "dist/Moosh-$VERSION-arm64.dmg" --title "Moosh $VERSION" --generate-notes --target "$GITHUB_SHA"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/pages
+
+  deploy-pages:
+    needs: release
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Verify release archive is public
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          version="${TAG#personal-v}"
+          curl --fail --location --retry 5 "https://github.com/tyrival/alt-tab-macos/releases/download/$TAG/Moosh-$version.zip" --output /dev/null
+      - name: Deploy update feed
+        id: deployment
+        uses: actions/deploy-pages@v4
