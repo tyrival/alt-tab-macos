@@ -83,7 +83,7 @@ jobs:
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$password" "$keychain"
           security import "$RUNNER_TEMP/moosh.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          openssl pkcs12 -in "$RUNNER_TEMP/moosh.p12" -clcerts -nokeys -passin "pass:$CERTIFICATE_PASSWORD" -out "$RUNNER_TEMP/moosh.crt"
+          openssl pkcs12 -legacy -in "$RUNNER_TEMP/moosh.p12" -clcerts -nokeys -passin "pass:$CERTIFICATE_PASSWORD" -out "$RUNNER_TEMP/moosh.crt"
           security list-keychains -d user -s "$keychain"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
           identity="$(openssl x509 -in "$RUNNER_TEMP/moosh.crt" -fingerprint -sha1 -noout | cut -d= -f2 | tr -d :)"
